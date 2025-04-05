@@ -310,10 +310,10 @@ public class HotelManagement {
             while (true) {
                 System.out.print("Enter Check-in Date (YYYY-MM-DD): ");
                 String checkInStr = scanner.nextLine();
-                if (!checkInStr.matches("\\d{4}-\\d{2}-\\d{2}")) 
+                if (!checkInStr.matches("\\d{4}-\\d{2}-\\d{2}"))
                     throw new IllegalArgumentException("Invalid date format! Use YYYY-MM-DD.");
                 checkIn = LocalDate.parse(checkInStr);
-                if (checkIn.isBefore(CURRENT_DATE)) 
+                if (checkIn.isBefore(CURRENT_DATE))
                     throw new IllegalArgumentException("Check-in date cannot be in the past!");
                 break;
             }
@@ -322,12 +322,12 @@ public class HotelManagement {
             while (true) {
                 System.out.print("Enter Check-out Date (YYYY-MM-DD): ");
                 String checkOutStr = scanner.nextLine();
-                if (!checkOutStr.matches("\\d{4}-\\d{2}-\\d{2}")) 
+                if (!checkOutStr.matches("\\d{4}-\\d{2}-\\d{2}"))
                     throw new IllegalArgumentException("Invalid date format! Use YYYY-MM-DD.");
                 checkOut = LocalDate.parse(checkOutStr);
-                if (checkOut.isBefore(CURRENT_DATE)) 
+                if (checkOut.isBefore(CURRENT_DATE))
                     throw new IllegalArgumentException("Check-out date cannot be in the past!");
-                if (!checkOut.isAfter(checkIn)) 
+                if (!checkOut.isAfter(checkIn))
                     throw new IllegalArgumentException("Check-out date must be after check-in date!");
                 break;
             }
@@ -351,27 +351,35 @@ public class HotelManagement {
 
             Room availableRoom = null;
             for (Room r : rooms) {
-                if (r.getType().equals(roomType) && r.isVacant() && isRoomAvailable(r, checkIn, checkOut)) {
+                if (r.getType().equals(roomType) && isRoomAvailable(r, checkIn, checkOut)) {
                     availableRoom = r;
                     break;
                 }
             }
-            if (availableRoom == null) 
+
+            if (availableRoom == null)
                 throw new IllegalArgumentException("No vacant " + roomType + " rooms available for these dates!");
 
             int reservationId = reservations.size() + 1;
-            Reservation newReservation = new Reservation(reservationId, checkIn.toString(), checkOut.toString(), 
-                                                        availableRoom.getRoomNumber(), 0.0, 
-                                                        currentUser.getUserId());
+            Reservation newReservation = new Reservation(
+                    reservationId,
+                    checkIn.toString(),
+                    checkOut.toString(),
+                    availableRoom.getRoomNumber(),
+                    0.0,
+                    currentUser.getUserId()
+            );
             newReservation.calculateBill(pricePerNight);
             reservations.add(newReservation);
-            availableRoom.setVacant(false);
-            showPopup("Reservation Confirmed", 
-                      "Reservation ID: " + reservationId + "\n" +
-                      "Room Number: " + availableRoom.getRoomNumber() + "\n" +
-                      "Check-in: " + checkIn + "\n" +
-                      "Check-out: " + checkOut + "\n" +
-                      "Room Type: " + roomType);
+            availableRoom.addReservation(newReservation); // ✅ Add to room's reservation list
+
+            showPopup("Reservation Confirmed",
+                    "Reservation ID: " + reservationId + "\n" +
+                            "Room Number: " + availableRoom.getRoomNumber() + "\n" +
+                            "Check-in: " + checkIn + "\n" +
+                            "Check-out: " + checkOut + "\n" +
+                            "Room Type: " + roomType);
+
         } catch (DateTimeParseException e) {
             System.out.println("Error: Invalid date format!");
         } catch (NumberFormatException e) {
@@ -402,18 +410,55 @@ public class HotelManagement {
 
     // View room status with dynamic availability
     private void viewRoomStatus() {
+        System.out.print("Enter date to check room status (YYYY-MM-DD): ");
+        String dateStr = scanner.nextLine();
+        LocalDate queryDate;
+
+        try {
+            if (!dateStr.matches("\\d{4}-\\d{2}-\\d{2}"))
+                throw new IllegalArgumentException("Invalid date format! Use YYYY-MM-DD.");
+
+            queryDate = LocalDate.parse(dateStr);
+
+            // ✅ Check if the date is today or in the future
+            if (queryDate.isBefore(CURRENT_DATE)) {
+                throw new IllegalArgumentException("You can only check status for today or a future date!");
+            }
+
+        } catch (Exception e) {
+            showPopup("Error", "Invalid date: " + e.getMessage());
+            return;
+        }
+
         StringBuilder status = new StringBuilder();
         if (rooms.isEmpty()) {
             showPopup("Room Status", "No rooms available.");
             return;
         }
         for (Room r : rooms) {
+            boolean isOccupied = false;
+
+            for (Reservation res : r.getReservations()) {
+                LocalDate resCheckIn = LocalDate.parse(res.getCheckInDate());
+                LocalDate resCheckOut = LocalDate.parse(res.getCheckOutDate());
+
+                // ✅ If queryDate falls within a reservation range, it's occupied
+                if (!queryDate.isBefore(resCheckIn) && queryDate.isBefore(resCheckOut)) {
+                    isOccupied = true;
+                    break;
+                }
+            }
+
+            String occupancyStatus = isOccupied ? "Occupied" : "Vacant";
             LocalDate availableDate = getEarliestAvailableDate(r);
-            status.append(String.format("Type: %s, Room: %d, Status: %s, Available From: %s, Price: $%.2f/night, Place: %s%n",
-                r.getType(), r.getRoomNumber(), r.isVacant() ? "Vacant" : "Occupied", 
-                availableDate, r.getPricePerNight(), r.getPlace()));
+
+            status.append(String.format(
+                    "Type: %s, Room: %d, Status on %s: %s, Available From: %s, Price: $%.2f/night, Place: %s%n",
+                    r.getType(), r.getRoomNumber(), queryDate, occupancyStatus,
+                    availableDate, r.getPricePerNight(), r.getPlace()));
         }
-        showPopup("Room Status", status.toString());
+
+        showPopup("Room Status for " + queryDate, status.toString());
     }
 
     // Customer checkout and billing process
