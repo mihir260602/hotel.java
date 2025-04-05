@@ -94,13 +94,18 @@ public class HotelManagement {
                 System.out.print("Enter Password (6-20 chars): ");
                 password = scanner.nextLine();
                 if (password.isEmpty()) throw new IllegalArgumentException("Password cannot be empty!");
-                if (password.length() < 6 || password.length() > 20) 
-                    throw new IllegalArgumentException("Password must be 6-20 characters!");
+                if (password.length() < 6 || password.length() > 20 ||
+                        !password.matches(".*[a-z].*") ||
+                        !password.matches(".*[A-Z].*") ||
+                        !password.matches(".*\\d.*")) {
+                    throw new IllegalArgumentException("Password must be 6-20 characters and include at least one lowercase letter, one uppercase letter, and one digit.");
+                }
                 break;
             } catch (IllegalArgumentException e) {
                 System.out.println("Error: " + e.getMessage());
             }
         }
+
 
         String name;
         while (true) {
