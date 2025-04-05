@@ -4,6 +4,13 @@ import java.time.temporal.ChronoUnit;
 public class Reservation {
     private int reservationId;
     private String checkInDate;
+    public void setCheckInDate(String checkInDate) {
+        this.checkInDate = checkInDate;
+    }
+    public void setCheckOutDate(String checkOutDate) {
+        this.checkOutDate = checkOutDate;
+    }
+
     private String checkOutDate;
     private int roomNumber;
     private double billAmount;
