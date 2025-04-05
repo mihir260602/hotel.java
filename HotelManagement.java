@@ -1,3 +1,4 @@
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.time.LocalDate;
@@ -201,14 +202,16 @@ public class HotelManagement {
             System.out.println("6. Contact");
             System.out.println("7. Update Profile");
             System.out.println("8. Delete Profile");
-            System.out.println("9. Logout");
-            System.out.print("Enter your choice (1-9, or any other key to logout): ");
+            System.out.println("9. Update Reservation");
+            System.out.println("10. View Upcoming Bookings");
+            System.out.println("11. LOGOUT!");
+            System.out.print("Enter your choice (1-11, or any other key to logout): ");
 
             try {
                 String input = scanner.nextLine();
                 if (input.isEmpty()) throw new IllegalArgumentException("Choice cannot be empty!");
                 int choice = Integer.parseInt(input);
-                if (choice < 1 || choice > 8) {
+                if (choice < 1 || choice > 11) {
                     System.out.println("Logging out...");
                     displayMainMenu();
                     return;
@@ -223,7 +226,9 @@ public class HotelManagement {
                     case 6: showContactSupport(); break;
                     case 7: updateProfile(); break;
                     case 8: deleteProfile(); break;
-                    case 9: System.exit(0); break;
+                    case 9: updateReservation();break;
+                    case 10: viewUpcomingBookings();break;
+                    case 11: System.exit(0); break;
                     default: System.out.println("Select a valid number from 1 to 9");
                 }
             } catch (NumberFormatException e) {
@@ -247,13 +252,14 @@ public class HotelManagement {
             System.out.println("4. Room Status");
             System.out.println("5. Checkout Billing (Invoice)");
             System.out.println("6. View Complaints");
-            System.out.print("Enter your choice (1-6, or any other key to logout): ");
+            System.out.println("7. View Upcoming Bookings By user id");
+            System.out.print("Enter your choice (1-8, or any other key to logout): ");
 
             try {
                 String input = scanner.nextLine();
                 if (input.isEmpty()) throw new IllegalArgumentException("Choice cannot be empty!");
                 int choice = Integer.parseInt(input);
-                if (choice < 1 || choice > 6) {
+                if (choice < 1 || choice > 8) {
                     System.out.println("Logging out...");
                     displayMainMenu();
                     return;
@@ -266,6 +272,8 @@ public class HotelManagement {
                     case 4: viewRoomStatus(); break;
                     case 5: generateInvoice(); break;
                     case 6: viewComplaints(); break;
+                    case 8:viewBookingHistoryById();break;
+
                 }
             } catch (NumberFormatException e) {
                 System.out.println("Logging out...");
@@ -289,6 +297,109 @@ public class HotelManagement {
         return earliest;
     }
 
+    public void updateReservation() {
+        viewUpcomingBookings();
+        try {
+            System.out.print("Enter the Reservation ID you want to modify: ");
+            int reservationId = Integer.parseInt(scanner.nextLine());
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            LocalDate today = LocalDate.now();
+
+            boolean found = false;
+
+            for (Reservation r : reservations) {
+                LocalDate checkInDate = LocalDate.parse(r.getCheckInDate(), formatter);
+
+                if (r.getReservationId() == reservationId &&
+                        (r.getUserId().equals(currentUser.getUserId()) || currentUser.isAdmin()) &&
+                        !checkInDate.isBefore(today)) {
+
+                    found = true;
+
+                    System.out.println("What would you like to do?");
+                    System.out.println("1. Change dates");
+                    System.out.println("2. Delete reservation");
+                    System.out.print("Enter your choice (1 or 2): ");
+                    int choice = Integer.parseInt(scanner.nextLine());
+
+                    if (choice == 1) {
+                        System.out.print("Enter new Check-in Date (yyyy-MM-dd): ");
+                        String newCheckInStr = scanner.nextLine();
+                        System.out.print("Enter new Check-out Date (yyyy-MM-dd): ");
+                        String newCheckOutStr = scanner.nextLine();
+
+                        LocalDate newCheckIn = LocalDate.parse(newCheckInStr, formatter);
+                        LocalDate newCheckOut = LocalDate.parse(newCheckOutStr, formatter);
+
+                        Room room = getRoomByNumber(r.getRoomNumber());
+
+                        if (!isRoomAvailable(room, newCheckIn, newCheckOut, r.getReservationId())) {
+                            System.out.println("Error: The room is not available for the selected dates.");
+                            for (Reservation conflict : room.getReservations()) {
+                                if (conflict.getReservationId() != r.getReservationId()) {
+                                    System.out.printf("Already booked from %s to %s%n",
+                                            conflict.getCheckInDate(), conflict.getCheckOutDate());
+                                }
+                            }
+                            return;
+                        }
+
+                        r.setCheckInDate(newCheckInStr);
+                        r.setCheckOutDate(newCheckOutStr);
+                        System.out.println("Reservation updated successfully!");
+
+                    } else if (choice == 2) {
+                        reservations.remove(r);
+
+                        Room room = getRoomByNumber(r.getRoomNumber());
+                        if (room != null) room.getReservations().remove(r);
+
+                        System.out.println("Reservation deleted successfully.");
+                    } else {
+                        System.out.println("Invalid choice.");
+                    }
+
+                    break; // reservation is handled, no need to continue loop
+                }
+            }
+
+            if (!found) {
+                System.out.println("Reservation not found or not an upcoming booking.");
+            }
+
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
+
+    private Room getRoomByNumber(int roomNumber) {
+        for (Room room : rooms) {
+            if (room.getRoomNumber() == roomNumber) {
+                return room;
+            }
+        }
+        return null;
+    }
+
+
+
+
+    private boolean isRoomAvailable(Room room, LocalDate checkIn, LocalDate checkOut, int reservationIdToExclude) {
+        for (Reservation r : room.getReservations()) {
+            if (r.getReservationId() != reservationIdToExclude) {
+                LocalDate existingCheckIn = LocalDate.parse(r.getCheckInDate());
+                LocalDate existingCheckOut = LocalDate.parse(r.getCheckOutDate());
+                if (!(checkOut.isBefore(existingCheckIn) || checkIn.isAfter(existingCheckOut))) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+
     // Check if a room is available for given dates
     private boolean isRoomAvailable(Room room, LocalDate checkIn, LocalDate checkOut) {
         for (Reservation r : reservations) {
@@ -302,6 +413,32 @@ public class HotelManagement {
         }
         return true;
     }
+
+    private void viewUpcomingBookings() {
+        StringBuilder upcoming = new StringBuilder();
+        boolean hasUpcoming = false;
+        LocalDate today = LocalDate.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        for (Reservation r : reservations) {
+            if (r.getUserId().equals(currentUser.getUserId()) || currentUser.isAdmin()) {
+                LocalDate checkIn = LocalDate.parse(r.getCheckInDate(), formatter);
+                if (!checkIn.isBefore(today)) {
+                    upcoming.append(String.format("ID: %d, Check-in: %s, Check-out: %s, Room: %d%n",
+                            r.getReservationId(), r.getCheckInDate(), r.getCheckOutDate(), r.getRoomNumber()));
+                    hasUpcoming = true;
+                }
+            }
+        }
+
+        if (!hasUpcoming) {
+            showPopup("Upcoming Bookings", "No upcoming bookings found.");
+        } else {
+            showPopup("Upcoming Bookings", upcoming.toString());
+        }
+    }
+
+
 
     // Customer reservation process
     private void makeReservation() {
@@ -393,20 +530,28 @@ public class HotelManagement {
     private void viewBookingHistory() {
         StringBuilder history = new StringBuilder();
         boolean hasBookings = false;
+        LocalDate today = LocalDate.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
         for (Reservation r : reservations) {
             if (r.getUserId().equals(currentUser.getUserId()) || currentUser.isAdmin()) {
-                history.append(String.format("ID: %d, Check-in: %s, Check-out: %s, Room: %d, Bill: $%.2f%n",
-                    r.getReservationId(), r.getCheckInDate(), r.getCheckOutDate(), 
-                    r.getRoomNumber(), r.getBillAmount()));
-                hasBookings = true;
+                LocalDate checkIn = LocalDate.parse(r.getCheckInDate(), formatter);
+                if (checkIn.isBefore(today)) {
+                    history.append(String.format("ID: %d, Check-in: %s, Check-out: %s, Room: %d, Bill: $%.2f%n",
+                            r.getReservationId(), r.getCheckInDate(), r.getCheckOutDate(),
+                            r.getRoomNumber(), r.getBillAmount()));
+                    hasBookings = true;
+                }
             }
         }
+
         if (!hasBookings) {
-            showPopup("Booking History", "No booking history available.");
+            showPopup("Previous Bookings", "No previous bookings found.");
         } else {
-            showPopup("Booking History", history.toString());
+            showPopup("Previous Bookings", history.toString());
         }
     }
+
 
     // View room status with dynamic availability
     private void viewRoomStatus() {
@@ -729,6 +874,7 @@ public class HotelManagement {
             System.out.print("Enter User ID (e.g., U001): ");
             String userId = scanner.nextLine();
             if (userId.isEmpty()) throw new IllegalArgumentException("User ID cannot be empty!");
+
             boolean userExists = false;
             for (User u : users) {
                 if (u.getUserId().equals(userId)) {
@@ -740,16 +886,23 @@ public class HotelManagement {
 
             StringBuilder history = new StringBuilder();
             boolean hasBookings = false;
+            LocalDate today = LocalDate.now();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
             for (Reservation r : reservations) {
                 if (r.getUserId().equals(userId)) {
-                    history.append(String.format("ID: %d, Check-in: %s, Check-out: %s, Room: %d, Bill: $%.2f%n",
-                        r.getReservationId(), r.getCheckInDate(), r.getCheckOutDate(), 
-                        r.getRoomNumber(), r.getBillAmount()));
-                    hasBookings = true;
+                    LocalDate checkIn = LocalDate.parse(r.getCheckInDate(), formatter);
+                    if (checkIn.isBefore(today)) {
+                        history.append(String.format("ID: %d, Check-in: %s, Check-out: %s, Room: %d, Bill: $%.2f%n",
+                                r.getReservationId(), r.getCheckInDate(), r.getCheckOutDate(),
+                                r.getRoomNumber(), r.getBillAmount()));
+                        hasBookings = true;
+                    }
                 }
             }
+
             if (!hasBookings) {
-                showPopup("Booking History for " + userId, "No bookings found for this user.");
+                showPopup("Booking History for " + userId, "No past bookings found for this user.");
             } else {
                 showPopup("Booking History for " + userId, history.toString());
             }
@@ -757,6 +910,49 @@ public class HotelManagement {
             System.out.println("Error: " + e.getMessage());
         }
     }
+
+    private void viewUpcomingBookingsById() {
+        try {
+            System.out.print("Enter User ID (e.g., U001): ");
+            String userId = scanner.nextLine();
+            if (userId.isEmpty()) throw new IllegalArgumentException("User ID cannot be empty!");
+
+            boolean userExists = false;
+            for (User u : users) {
+                if (u.getUserId().equals(userId)) {
+                    userExists = true;
+                    break;
+                }
+            }
+            if (!userExists) throw new IllegalArgumentException("User ID does not exist!");
+
+            StringBuilder upcoming = new StringBuilder();
+            boolean hasUpcoming = false;
+            LocalDate today = LocalDate.now();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+            for (Reservation r : reservations) {
+                if (r.getUserId().equals(userId)) {
+                    LocalDate checkIn = LocalDate.parse(r.getCheckInDate(), formatter);
+                    if (!checkIn.isBefore(today)) {
+                        upcoming.append(String.format("ID: %d, Check-in: %s, Check-out: %s, Room: %d%n",
+                                r.getReservationId(), r.getCheckInDate(), r.getCheckOutDate(),
+                                r.getRoomNumber()));
+                        hasUpcoming = true;
+                    }
+                }
+            }
+
+            if (!hasUpcoming) {
+                showPopup("Upcoming Bookings for " + userId, "No upcoming bookings found for this user.");
+            } else {
+                showPopup("Upcoming Bookings for " + userId, upcoming.toString());
+            }
+        } catch (IllegalArgumentException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
 
     // Generate invoice for a reservation (admin only)
     private void generateInvoice() {
