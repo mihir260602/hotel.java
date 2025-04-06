@@ -228,7 +228,7 @@ public class HotelManagement {
                     case 8: deleteProfile(); break;
                     case 9: updateReservation();break;
                     case 10: viewUpcomingBookings();break;
-                    case 11: System.exit(0); break;
+                    case 11: displayMainMenu(); break;
                     default: System.out.println("Select a valid number from 1 to 9");
                 }
             } catch (NumberFormatException e) {
