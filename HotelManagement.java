@@ -246,13 +246,14 @@ public class HotelManagement {
         while (true) {
             System.out.println("\n=== ADMIN MENU ===");
             System.out.println("Welcome, " + currentUser.getName() + " (ID: " + currentUser.getUserId() + ")");
-            System.out.println("1. Booking Hotel Services");
+            System.out.println("1. Boook Hotel Room for User");
             System.out.println("2. Booking History");
             System.out.println("3. Booking History by ID");
             System.out.println("4. Room Status");
             System.out.println("5. Checkout Billing (Invoice)");
             System.out.println("6. View Complaints");
-            System.out.println("7. View Upcoming Bookings By user id");
+            System.out.println("7. upcoming bookings");
+            System.out.println("8. upcoming booking by user ID");
             System.out.print("Enter your choice (1-8, or any other key to logout): ");
 
             try {
@@ -272,7 +273,8 @@ public class HotelManagement {
                     case 4: viewRoomStatus(); break;
                     case 5: generateInvoice(); break;
                     case 6: viewComplaints(); break;
-                    case 8:viewBookingHistoryById();break;
+                    case 7: viewUpcomingBookings();break;
+                    case 8:viewUpcomingBookingsById();break;
 
                 }
             } catch (NumberFormatException e) {
